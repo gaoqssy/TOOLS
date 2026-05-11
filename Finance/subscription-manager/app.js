@@ -3,6 +3,7 @@ const SCHEMA_VERSION = 1;
 
 const state = {
   records: [],
+  selectedIds: new Set(),
   filters: {
     category: "all",
     status: "all",
@@ -25,6 +26,8 @@ const els = {
   notes: document.querySelector("#notesInput"),
   resetForm: document.querySelector("#resetFormButton"),
   clearAll: document.querySelector("#clearAllButton"),
+  deleteSelected: document.querySelector("#deleteSelectedButton"),
+  selectAll: document.querySelector("#selectAllCheckbox"),
   exportJson: document.querySelector("#exportJsonButton"),
   importJson: document.querySelector("#importJsonButton"),
   importJsonInput: document.querySelector("#importJsonInput"),
@@ -347,6 +350,9 @@ function renderTable() {
     const nextDate = nextOccurrenceOnOrAfter(record, todayAtStart());
     const row = document.createElement("tr");
     row.innerHTML = `
+      <td class="selection-cell">
+        <input class="row-select" type="checkbox" data-id="${record.id}" aria-label="选择 ${escapeHtml(record.name)}"${state.selectedIds.has(record.id) ? " checked" : ""}>
+      </td>
       <td>
         <strong>${escapeHtml(record.name)}</strong>
         ${record.notes ? `<div class="muted-note">${escapeHtml(record.notes)}</div>` : ""}
@@ -360,12 +366,12 @@ function renderTable() {
       <td>
         <div class="actions-cell">
           <button class="button subtle table-action" type="button" data-action="edit" data-id="${record.id}">编辑</button>
-          <button class="button danger table-action" type="button" data-action="delete" data-id="${record.id}">删除</button>
         </div>
       </td>
     `;
     els.tableBody.appendChild(row);
   }
+  syncSelectionControls(records);
 }
 
 function render() {
@@ -401,11 +407,23 @@ function editRecord(id) {
   els.name.focus();
 }
 
-function deleteRecord(id) {
-  const record = state.records.find((item) => item.id === id);
-  if (!record) return;
-  if (!confirm(`删除「${record.name}」？`)) return;
-  state.records = state.records.filter((item) => item.id !== id);
+function syncSelectionControls(visibleRecords = applyFilters([...state.records])) {
+  const visibleIds = visibleRecords.map((record) => record.id);
+  const selectedVisibleCount = visibleIds.filter((id) => state.selectedIds.has(id)).length;
+  els.deleteSelected.disabled = state.selectedIds.size === 0;
+  els.deleteSelected.textContent = state.selectedIds.size
+    ? `删除选中 (${state.selectedIds.size})`
+    : "删除选中";
+  els.selectAll.checked = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
+  els.selectAll.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visibleIds.length;
+}
+
+function deleteSelectedRecords() {
+  const selectedRecords = state.records.filter((record) => state.selectedIds.has(record.id));
+  if (!selectedRecords.length) return;
+  if (!confirm(`删除选中的 ${selectedRecords.length} 条固定支出？`)) return;
+  state.records = state.records.filter((record) => !state.selectedIds.has(record.id));
+  state.selectedIds.clear();
   saveRecords();
   render();
 }
@@ -456,6 +474,7 @@ els.form.addEventListener("submit", (event) => {
   } else {
     state.records.push(record);
   }
+  state.selectedIds.delete(record.id);
   saveRecords();
   resetForm();
   render();
@@ -467,9 +486,24 @@ els.clearAll.addEventListener("click", () => {
   if (!state.records.length) return;
   if (!confirm("清空所有固定支出记录？建议先导出 JSON 备份。")) return;
   state.records = [];
+  state.selectedIds.clear();
   saveRecords();
   resetForm();
   render();
+});
+
+els.deleteSelected.addEventListener("click", deleteSelectedRecords);
+
+els.selectAll.addEventListener("change", () => {
+  const visibleRecords = applyFilters([...state.records]);
+  for (const record of visibleRecords) {
+    if (els.selectAll.checked) {
+      state.selectedIds.add(record.id);
+    } else {
+      state.selectedIds.delete(record.id);
+    }
+  }
+  renderTable();
 });
 
 els.exportJson.addEventListener("click", exportJson);
@@ -499,7 +533,17 @@ els.tableBody.addEventListener("click", (event) => {
   if (!button) return;
   const id = button.dataset.id;
   if (button.dataset.action === "edit") editRecord(id);
-  if (button.dataset.action === "delete") deleteRecord(id);
+});
+
+els.tableBody.addEventListener("change", (event) => {
+  const checkbox = event.target.closest(".row-select");
+  if (!checkbox) return;
+  if (checkbox.checked) {
+    state.selectedIds.add(checkbox.dataset.id);
+  } else {
+    state.selectedIds.delete(checkbox.dataset.id);
+  }
+  syncSelectionControls();
 });
 
 state.records = loadRecords();

@@ -13,11 +13,6 @@
         <h1>固定支出管理器</h1>
         <p class="subtitle">管理订阅、会员、房租、话费、云服务等周期性支出。</p>
       </div>
-      <div class="header-actions">
-        <button class="button secondary" id="exportJsonButton" type="button">导出 JSON</button>
-        <button class="button secondary" id="importJsonButton" type="button">导入 JSON</button>
-        <input class="visually-hidden" id="importJsonInput" type="file" accept="application/json,.json">
-      </div>
     </header>
 
     <main class="app-shell">
@@ -126,7 +121,6 @@
 
           <div class="form-actions">
             <button class="button primary" type="submit">保存</button>
-            <button class="button danger" id="clearAllButton" type="button">清空数据</button>
           </div>
         </form>
 
@@ -172,6 +166,7 @@
                 <option value="category">分类</option>
               </select>
             </label>
+            <button class="button danger" id="deleteSelectedButton" type="button" disabled>删除选中</button>
           </div>
         </div>
 
@@ -179,6 +174,9 @@
           <table>
             <thead>
               <tr>
+                <th class="selection-cell">
+                  <input id="selectAllCheckbox" type="checkbox" aria-label="选择当前列表中的全部项目">
+                </th>
                 <th>名称</th>
                 <th>金额</th>
                 <th>周期</th>
@@ -186,13 +184,24 @@
                 <th>分类</th>
                 <th>支付账户</th>
                 <th>状态</th>
-                <th>操作</th>
+                <th>编辑</th>
               </tr>
             </thead>
             <tbody id="expenseTableBody"></tbody>
           </table>
         </div>
         <p class="empty-state" id="emptyState">还没有固定支出。先添加一条订阅或账单。</p>
+
+        <details class="backup-panel">
+          <summary>数据备份</summary>
+          <div class="backup-actions">
+            <button class="button secondary" id="exportJsonButton" type="button">导出 JSON</button>
+            <button class="button secondary" id="importJsonButton" type="button">导入 JSON</button>
+            <button class="button danger" id="clearAllButton" type="button">清空全部数据</button>
+            <input class="visually-hidden" id="importJsonInput" type="file" accept="application/json,.json">
+          </div>
+          <p>数据会自动保存在当前浏览器。JSON 只用于备份或迁移。</p>
+        </details>
       </section>
     </main>
 
