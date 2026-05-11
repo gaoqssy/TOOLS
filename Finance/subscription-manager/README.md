@@ -4,9 +4,28 @@
 
 ## 使用方式
 
-直接在浏览器打开 `index.html`。
+推荐启动本地数据服务：
 
-数据默认保存在当前浏览器的 `localStorage` 中，不会上传到网络。页面会自动保存；需要迁移时可以展开“数据备份”导出 JSON。
+```bash
+cd /Users/gao/Desktop/TOOLS/Finance/subscription-manager
+python3 server.py
+```
+
+然后打开：
+
+```text
+http://127.0.0.1:8787/
+```
+
+也可以直接在浏览器打开 `index.html`，此时会退回到浏览器本地模式。
+
+启动数据服务后，保存、删除和导入会自动同步到后台 JSON 文件：
+
+```text
+data/recurring-expenses.json
+```
+
+这个数据文件被 `.gitignore` 忽略，不会提交到 GitHub。需要迁移时可以展开“数据备份”导出 JSON。
 
 ## 功能
 
@@ -19,14 +38,37 @@
 - 支持勾选项目后批量删除。
 - 支持折叠的 JSON 导入和导出。
 
+## 数据服务 API
+
+本地数据服务提供以下接口：
+
+```text
+GET /api/health
+GET /api/records
+PUT /api/records
+```
+
+`PUT /api/records` 接收完整数据：
+
+```json
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-05-11T00:00:00.000Z",
+  "source": "TOOLS/Finance/subscription-manager",
+  "records": []
+}
+```
+
+agent 可以通过这些接口读取、更新和删除固定支出。网页只是展示层，后台 JSON 是数据源。
+
 ## 后续交互方向
 
-当前网页负责展示和本地数据维护。如果要实现“保存时同步到后台”或“通过 agent 对话增删改查”，下一步需要增加一个很薄的数据服务：
+当前网页负责展示和表单维护。下一步可以让 agent 接收自然语言输入，再转换成对数据服务的操作：
 
-- 网页继续作为展示层。
-- 数据服务提供固定支出的读取、写入、删除和导出接口。
-- agent 接收自然语言输入，转换成对数据服务的操作，例如“帮我新增一个半年付会员”。
-- 数据服务再负责同步到本地文件、GitHub 或后续资产管理工具。
+- “帮我新增一个半年付会员”
+- “把某个订阅改成暂停”
+- “删掉我选中的这些服务”
+- “帮我总结下未来 30 天扣费”
 
 ## 数据兼容性
 

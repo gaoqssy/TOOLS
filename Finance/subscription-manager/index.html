@@ -40,7 +40,7 @@
           <div class="panel-heading">
             <div>
               <h2 id="formTitle">新增固定支出</h2>
-              <p>数据只保存在当前浏览器。</p>
+              <p id="syncStatus">正在检查数据服务...</p>
             </div>
             <button class="button subtle" id="resetFormButton" type="button">重置</button>
           </div>
@@ -200,7 +200,7 @@
             <button class="button danger" id="clearAllButton" type="button">清空全部数据</button>
             <input class="visually-hidden" id="importJsonInput" type="file" accept="application/json,.json">
           </div>
-          <p>数据会自动保存在当前浏览器。JSON 只用于备份或迁移。</p>
+          <p>连接数据服务时会自动同步到后台；服务不可用时会保存在当前浏览器。JSON 只用于备份或迁移。</p>
         </details>
       </section>
     </main>

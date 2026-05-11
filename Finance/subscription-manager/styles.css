@@ -75,6 +75,27 @@ h2 {
   color: var(--muted);
 }
 
+#syncStatus {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--surface-muted);
+  font-size: 13px;
+}
+
+#syncStatus[data-mode="synced"] {
+  border-color: #b9d8cc;
+  background: #e8f4ef;
+  color: var(--primary);
+}
+
+#syncStatus[data-mode="local"] {
+  border-color: #e4c48e;
+  background: #fff6df;
+  color: #7b560e;
+}
+
 .form-actions,
 .filters,
 .backup-actions {

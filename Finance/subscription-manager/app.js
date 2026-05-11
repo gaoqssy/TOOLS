@@ -1,9 +1,14 @@
 const STORAGE_KEY = "tools.finance.recurring_expenses.v1";
 const SCHEMA_VERSION = 1;
+const API_BASE = ["http:", "https:"].includes(window.location.protocol) ? "" : "http://127.0.0.1:8787";
+const SERVICE_TIMEOUT_MS = 1200;
 
 const state = {
   records: [],
   selectedIds: new Set(),
+  backend: {
+    available: false,
+  },
   filters: {
     category: "all",
     status: "all",
@@ -14,6 +19,7 @@ const state = {
 const els = {
   form: document.querySelector("#expenseForm"),
   formTitle: document.querySelector("#formTitle"),
+  syncStatus: document.querySelector("#syncStatus"),
   recordId: document.querySelector("#recordId"),
   name: document.querySelector("#nameInput"),
   amount: document.querySelector("#amountInput"),
@@ -185,7 +191,16 @@ function normalizeRecord(record) {
   };
 }
 
-function loadRecords() {
+function storagePayload() {
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    updatedAt: new Date().toISOString(),
+    source: "TOOLS/Finance/subscription-manager",
+    records: state.records,
+  };
+}
+
+function loadLocalRecords() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
@@ -199,16 +214,83 @@ function loadRecords() {
   }
 }
 
+function saveLocalRecords() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(storagePayload()));
+}
+
+function setSyncStatus(message, mode = "neutral") {
+  els.syncStatus.textContent = message;
+  els.syncStatus.dataset.mode = mode;
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SERVICE_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function loadBackendPayload() {
+  const response = await fetchWithTimeout(`${API_BASE}/api/records`, {
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`数据服务返回 ${response.status}`);
+  return response.json();
+}
+
+async function saveBackendRecords() {
+  const response = await fetchWithTimeout(`${API_BASE}/api/records`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(storagePayload()),
+  });
+  if (!response.ok) throw new Error(`数据服务返回 ${response.status}`);
+  return response.json();
+}
+
+function recordsFromPayload(payload) {
+  const records = Array.isArray(payload) ? payload : payload.records;
+  if (!Array.isArray(records)) return [];
+  return records.map(normalizeRecord).filter((record) => record.name && record.nextChargeDate);
+}
+
+async function initializeStorage() {
+  const localRecords = loadLocalRecords();
+  state.records = localRecords;
+
+  try {
+    const payload = await loadBackendPayload();
+    const backendRecords = recordsFromPayload(payload);
+    state.backend.available = true;
+
+    if (backendRecords.length || !localRecords.length) {
+      state.records = backendRecords;
+      saveLocalRecords();
+    } else {
+      await saveBackendRecords();
+    }
+
+    setSyncStatus("已连接本地数据服务，保存会同步到后台。", "synced");
+  } catch (error) {
+    state.backend.available = false;
+    setSyncStatus("本地浏览器模式：启动数据服务后会自动同步。", "local");
+  }
+}
+
 function saveRecords() {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      schemaVersion: SCHEMA_VERSION,
-      updatedAt: new Date().toISOString(),
-      source: "TOOLS/Finance/subscription-manager",
-      records: state.records,
-    })
-  );
+  saveLocalRecords();
+  if (!state.backend.available) return;
+  saveBackendRecords()
+    .then(() => setSyncStatus("已同步到本地数据服务。", "synced"))
+    .catch(() => {
+      state.backend.available = false;
+      setSyncStatus("数据服务暂不可用，已保存到当前浏览器。", "local");
+    });
 }
 
 function buildExportPayload() {
@@ -546,6 +628,7 @@ els.tableBody.addEventListener("change", (event) => {
   syncSelectionControls();
 });
 
-state.records = loadRecords();
-resetForm();
-render();
+initializeStorage().finally(() => {
+  resetForm();
+  render();
+});
