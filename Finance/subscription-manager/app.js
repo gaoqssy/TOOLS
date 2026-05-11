@@ -81,6 +81,7 @@ function addCycle(date, cycle) {
     return result;
   }
   if (cycle === "quarterly") return addMonths(date, 3);
+  if (cycle === "semiannual") return addMonths(date, 6);
   if (cycle === "yearly") return addMonths(date, 12);
   return addMonths(date, 1);
 }
@@ -109,6 +110,7 @@ function monthlyCost(record) {
   if (record.status !== "active") return 0;
   if (record.cycle === "weekly") return (amount * 52) / 12;
   if (record.cycle === "quarterly") return amount / 3;
+  if (record.cycle === "semiannual") return amount / 6;
   if (record.cycle === "yearly") return amount / 12;
   return amount;
 }
@@ -142,6 +144,7 @@ function cycleLabel(cycle) {
     weekly: "每周",
     monthly: "每月",
     quarterly: "每季度",
+    semiannual: "每半年",
     yearly: "每年",
   }[cycle] || "每月";
 }
@@ -166,7 +169,7 @@ function normalizeRecord(record) {
     name: String(record.name || "").trim(),
     amount: Number(record.amount) || 0,
     currency: String(record.currency || "CNY").trim() || "CNY",
-    cycle: ["weekly", "monthly", "quarterly", "yearly"].includes(record.cycle)
+    cycle: ["weekly", "monthly", "quarterly", "semiannual", "yearly"].includes(record.cycle)
       ? record.cycle
       : "monthly",
     nextChargeDate: String(record.nextChargeDate || ""),
