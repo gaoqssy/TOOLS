@@ -1,50 +1,60 @@
 # TOOLS
 
-A lightweight workspace for small vibe-coding tools.
+这是一个用来放小型 vibe coding 工具的轻量工作区。
 
-## Categories
+目标不是一次性规划大型系统，而是把日常生活、学习阅读、健康记录、个人理财里经常重复的事情，逐步做成能自己使用的小工具。
 
-| Folder | Purpose | Example tool ideas |
+## 目录分类
+
+| 目录 | 用途 | 可以做的小工具 |
 | --- | --- | --- |
-| `Health/` | Health tracking and personal wellness tools. | Weight log, sleep tracker, workout tracker, meal log, medication reminder, checkup metrics dashboard, mood journal. |
-| `Life/` | Daily-life organization tools. | Schedule helper, chore tracker, shopping list, travel planner, subscription tracker, personal inventory. |
-| `Knowledge/` | Learning, reading, and knowledge-management tools. | Course tracker, problem-solving log, paper notes, book notes, reading progress, article collector, flashcards, excerpt organizer. |
-| `Finance/` | Personal finance and money-management tools. | Budget planner, expense analyzer, asset tracker, watchlist, bill reminder. |
-| `Inbox/` | Temporary ideas and uncategorized prototypes. | Rough sketches, quick experiments, unsorted tool ideas. |
-| `Archive/` | Paused, retired, or completed tools kept for reference. | Old prototypes, abandoned ideas, finished utilities. |
+| `Health/` | 健康记录和个人状态管理。 | 体重记录、睡眠追踪、运动记录、饮食日志、用药提醒、体检指标看板、情绪记录。 |
+| `Life/` | 日常生活组织和个人事务管理。 | 日程助手、家务追踪、购物清单、旅行计划、订阅管理、个人物品管理。 |
+| `Knowledge/` | 学习、阅读和知识管理。 | 课程进度、刷题记录、论文笔记、书摘整理、阅读进度、文章收藏、知识卡片、摘录整理。 |
+| `Finance/` | 个人财务和资金管理。 | 预算规划、支出分析、资产记录、投资观察清单、账单提醒。 |
+| `Inbox/` | 临时想法和还没分类的原型。 | 粗略草稿、快速实验、暂时不知道放哪里的工具想法。 |
+| `Archive/` | 暂停、废弃或已完成但保留参考的工具。 | 旧原型、停止维护的想法、已经完成的小工具。 |
 
-## GitHub Workflow
+## GitHub 工作流
 
-This folder is managed as a GitHub-ready workspace.
+这个目录会作为一个 GitHub 仓库来管理。
 
-- Use GitHub Issues for tool ideas, tasks, bugs, and documentation notes.
-- Use the `Tool idea` issue template for new tool concepts.
-- Use the `Tool task` issue template for implementation work.
-- Use pull requests for meaningful changes, even when working alone.
-- Keep project-management details in `docs/GITHUB_PROJECT_MANAGEMENT.md`.
+- 用 GitHub Issues 记录工具想法、开发任务、bug 和文档事项。
+- 新工具想法使用 `Tool idea` issue 模板。
+- 已有工具的开发工作使用 `Tool task` issue 模板。
+- 有实际改动时使用 pull request 管理，即使只有自己一个人开发。
+- 项目管理细节记录在 `docs/GITHUB_PROJECT_MANAGEMENT.md`。
 
-## Tool Status
+## 工具状态
 
-Use these status labels when tracking tools:
+记录工具时使用以下状态：
 
-- `idea`: Concept only; no implementation yet.
-- `prototype`: Rough working version or experiment.
-- `active`: Currently useful and maintained.
-- `paused`: Temporarily stopped but may continue later.
-- `archived`: No longer active; kept for reference.
+- `idea`：只有想法，还没有开始实现。
+- `prototype`：已经有粗糙可用的实验版本。
+- `active`：当前有用，并且会继续维护。
+- `paused`：暂时停止，但以后可能继续。
+- `archived`：不再活跃，只保留作为参考。
 
-## Tool Index
+## 工具索引
 
-Add tools here as they are created.
+创建新工具后，把它登记在这里。
 
-| Name | Category | Status | Purpose | Entry / Run | Last Updated |
+| 名称 | 分类 | 状态 | 用途 | 入口 / 运行方式 | 最后更新 |
 | --- | --- | --- | --- | --- | --- |
 |  |  | `idea` |  |  |  |
 
-## Idea Pool
+## 想法池
 
-- Health: personal health dashboard combining weight, sleep, exercise, and mood trends.
-- Life: subscription and bill reminder with renewal dates and monthly cost summary.
-- Knowledge: reading-to-notes pipeline for books, papers, articles, and knowledge cards.
-- Finance: expense categorizer and monthly budget review tool.
+- Health：个人健康看板，整合体重、睡眠、运动和情绪趋势。
+- Life：订阅和账单提醒，汇总续费日期和每月固定开销。
+- Knowledge：阅读到笔记的整理流程，覆盖书籍、论文、文章和知识卡片。
+- Finance：支出自动分类和月度预算复盘工具。
+
+## 使用原则
+
+- 先做最小可用版本，再逐步完善。
+- 每个工具都应该有明确用途和简单入口。
+- 不把私人数据、密钥、账号信息提交到 GitHub。
+- 不确定分类时先放进 `Inbox/`，稳定后再移动到合适目录。
+- 不再维护但还有参考价值的工具移动到 `Archive/`。
 
