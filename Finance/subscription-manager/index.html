@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>固定支出管理器</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Finance / Recurring Expenses</p>
+        <h1>固定支出管理器</h1>
+        <p class="subtitle">管理订阅、会员、房租、话费、云服务等周期性支出。</p>
+      </div>
+      <div class="header-actions">
+        <button class="button secondary" id="exportJsonButton" type="button">导出 JSON</button>
+        <button class="button secondary" id="importJsonButton" type="button">导入 JSON</button>
+        <input class="visually-hidden" id="importJsonInput" type="file" accept="application/json,.json">
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <section class="summary-grid" aria-label="支出总览">
+        <article class="summary-card">
+          <span>月均固定支出</span>
+          <strong id="monthlyTotal">¥0.00</strong>
+        </article>
+        <article class="summary-card">
+          <span>年化固定支出</span>
+          <strong id="annualTotal">¥0.00</strong>
+        </article>
+        <article class="summary-card">
+          <span>未来 30 天扣费</span>
+          <strong id="next30Total">¥0.00</strong>
+        </article>
+        <article class="summary-card">
+          <span>活跃项目</span>
+          <strong id="activeCount">0</strong>
+        </article>
+      </section>
+
+      <section class="workspace-grid">
+        <form class="panel form-panel" id="expenseForm">
+          <div class="panel-heading">
+            <div>
+              <h2 id="formTitle">新增固定支出</h2>
+              <p>数据只保存在当前浏览器。</p>
+            </div>
+            <button class="button subtle" id="resetFormButton" type="button">重置</button>
+          </div>
+
+          <input id="recordId" type="hidden">
+
+          <label>
+            名称
+            <input id="nameInput" type="text" placeholder="例如：ChatGPT Plus" required>
+          </label>
+
+          <div class="form-row">
+            <label>
+              金额
+              <input id="amountInput" type="number" min="0" step="0.01" placeholder="20" required>
+            </label>
+            <label>
+              币种
+              <select id="currencyInput">
+                <option value="CNY">CNY</option>
+                <option value="USD">USD</option>
+                <option value="HKD">HKD</option>
+                <option value="EUR">EUR</option>
+                <option value="JPY">JPY</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              周期
+              <select id="cycleInput">
+                <option value="monthly">每月</option>
+                <option value="yearly">每年</option>
+                <option value="quarterly">每季度</option>
+                <option value="weekly">每周</option>
+              </select>
+            </label>
+            <label>
+              下次扣费日
+              <input id="nextChargeDateInput" type="date" required>
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              分类
+              <input id="categoryInput" type="text" list="categorySuggestions" placeholder="例如：软件服务">
+              <datalist id="categorySuggestions">
+                <option value="软件服务"></option>
+                <option value="会员订阅"></option>
+                <option value="住房"></option>
+                <option value="通信"></option>
+                <option value="学习"></option>
+                <option value="娱乐"></option>
+              </datalist>
+            </label>
+            <label>
+              支付账户
+              <input id="paymentAccountInput" type="text" placeholder="例如：招商信用卡">
+            </label>
+          </div>
+
+          <label>
+            状态
+            <select id="statusInput">
+              <option value="active">启用</option>
+              <option value="paused">暂停</option>
+              <option value="canceled">取消</option>
+            </select>
+          </label>
+
+          <label>
+            备注
+            <textarea id="notesInput" rows="3" placeholder="合同周期、优惠信息、取消入口等"></textarea>
+          </label>
+
+          <div class="form-actions">
+            <button class="button primary" type="submit">保存</button>
+            <button class="button danger" id="clearAllButton" type="button">清空数据</button>
+          </div>
+        </form>
+
+        <section class="panel upcoming-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>即将扣费</h2>
+              <p>根据周期自动推算下一次扣费。</p>
+            </div>
+          </div>
+          <div class="upcoming-list" id="upcomingList"></div>
+        </section>
+      </section>
+
+      <section class="panel table-panel">
+        <div class="panel-heading table-heading">
+          <div>
+            <h2>固定支出列表</h2>
+            <p>暂停和取消的项目不会计入活跃支出总额。</p>
+          </div>
+          <div class="filters">
+            <label>
+              分类
+              <select id="categoryFilter">
+                <option value="all">全部分类</option>
+              </select>
+            </label>
+            <label>
+              状态
+              <select id="statusFilter">
+                <option value="all">全部状态</option>
+                <option value="active">启用</option>
+                <option value="paused">暂停</option>
+                <option value="canceled">取消</option>
+              </select>
+            </label>
+            <label>
+              排序
+              <select id="sortSelect">
+                <option value="nextChargeDate">下次扣费日</option>
+                <option value="amountDesc">金额从高到低</option>
+                <option value="name">名称</option>
+                <option value="category">分类</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>金额</th>
+                <th>周期</th>
+                <th>下次扣费</th>
+                <th>分类</th>
+                <th>支付账户</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="expenseTableBody"></tbody>
+          </table>
+        </div>
+        <p class="empty-state" id="emptyState">还没有固定支出。先添加一条订阅或账单。</p>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
+
