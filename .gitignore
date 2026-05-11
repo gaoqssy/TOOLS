@@ -1,0 +1,23 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.vite/
+
+# Logs and local state
+*.log
+*.sqlite
+*.db
+
