@@ -34,9 +34,17 @@
           <span>未来 30 天</span>
           <strong id="next30Total">¥0.00</strong>
         </article>
+        <article>
+          <span>今日日历清单</span>
+          <strong id="todayCalendarCount">0</strong>
+        </article>
       </section>
 
       <section class="grid">
+        <article class="panel">
+          <h2>今日日历清单</h2>
+          <div id="todayCalendarItems" class="list"></div>
+        </article>
         <article class="panel">
           <h2>未来 7 天扣费</h2>
           <div id="upcoming7" class="list"></div>
@@ -48,6 +56,11 @@
       </section>
 
       <section class="panel">
+        <h2>未来 7 天日程 / 清单</h2>
+        <div id="calendarNext7" class="list compact"></div>
+      </section>
+
+      <section class="panel">
         <h2>未来 30 天扣费</h2>
         <div id="upcoming30" class="list compact"></div>
       </section>
@@ -56,4 +69,3 @@
     <script src="app.js"></script>
   </body>
 </html>
-

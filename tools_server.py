@@ -5,12 +5,15 @@ from datetime import date, datetime, timedelta
 import json
 import os
 from pathlib import Path
+import re
+import sqlite3
 import tempfile
 from urllib.parse import urlparse
 
 
 ROOT_DIR = Path(__file__).resolve().parent
 SUBSCRIPTION_DATA_FILE = ROOT_DIR / "Finance/subscription-manager/data/recurring-expenses.json"
+CALENDAR_TASK_DB = Path.home() / "Library/Containers/com.xdiarys.www/Data/desktopcal.sqlite"
 AGENT_STATE_DIR = ROOT_DIR / ".agent-state"
 DAILY_DASHBOARD_FILE = AGENT_STATE_DIR / "daily-dashboard.json"
 SCHEMA_VERSION = 1
@@ -138,6 +141,145 @@ def add_money(target, currency, amount):
     return target
 
 
+def calendar_task_items():
+    if not CALENDAR_TASK_DB.exists():
+        return {
+            "available": False,
+            "dataFile": str(CALENDAR_TASK_DB),
+            "items": [],
+            "events": [],
+        }
+
+    today = date.today()
+    end_day = today + timedelta(days=30)
+    items = []
+    events = []
+
+    try:
+        with sqlite3.connect(f"file:{CALENDAR_TASK_DB}?mode=ro", uri=True) as conn:
+            conn.row_factory = sqlite3.Row
+            for row in conn.execute(
+                """
+                SELECT it_id, it_unique_id, it_content, it_mdate
+                FROM item_table
+                WHERE it_content IS NOT NULL AND trim(it_content) != ''
+                ORDER BY it_unique_id
+                """
+            ):
+                item_date = date_from_item_unique_id(row["it_unique_id"])
+                if not item_date or not (today <= item_date <= end_day):
+                    continue
+                lines = content_lines(row["it_content"])
+                if not lines:
+                    continue
+                items.append({
+                    "id": row["it_id"],
+                    "date": item_date.isoformat(),
+                    "daysUntil": (item_date - today).days,
+                    "title": "\n".join(lines),
+                    "lines": lines,
+                    "updatedAt": row["it_mdate"],
+                })
+
+            for row in conn.execute(
+                """
+                SELECT ev_id, ev_content, ev_type, ev_start_date, ev_end_date, ev_status, ev_recurrence
+                FROM event_table
+                WHERE ev_content IS NOT NULL AND trim(ev_content) != ''
+                """
+            ):
+                event_date = effective_event_date(row, today)
+                if not event_date or not (today <= event_date <= end_day):
+                    continue
+                events.append({
+                    "id": row["ev_id"],
+                    "date": event_date.isoformat(),
+                    "daysUntil": (event_date - today).days,
+                    "title": row["ev_content"],
+                    "type": row["ev_type"],
+                    "status": row["ev_status"],
+                    "recurrence": row["ev_recurrence"],
+                })
+    except sqlite3.Error as error:
+        return {
+            "available": False,
+            "dataFile": str(CALENDAR_TASK_DB),
+            "error": str(error),
+            "items": [],
+            "events": [],
+        }
+
+    items.sort(key=lambda item: (item["date"], item["id"]))
+    events.sort(key=lambda event: (event["date"], event["id"]))
+    return {
+        "available": True,
+        "dataFile": str(CALENDAR_TASK_DB),
+        "items": items,
+        "events": events,
+        "todayItems": [item for item in items if item["daysUntil"] == 0],
+        "next7Items": [item for item in items if item["daysUntil"] <= 7],
+        "next30Items": items,
+        "next7Events": [event for event in events if event["daysUntil"] <= 7],
+        "next30Events": events,
+    }
+
+
+def date_from_item_unique_id(value):
+    match = re.search(r"(\d{8})$", value or "")
+    if not match:
+        return None
+    try:
+        return datetime.strptime(match.group(1), "%Y%m%d").date()
+    except ValueError:
+        return None
+
+
+def content_lines(value):
+    return [line.strip() for line in (value or "").splitlines() if line.strip()]
+
+
+def parse_calendar_task_datetime(value):
+    if not value:
+        return None
+    normalized = value
+    if len(value) >= 5 and (value[-5] in ["+", "-"]) and value[-2:].isdigit():
+        normalized = f"{value[:-2]}:{value[-2:]}"
+    try:
+        return datetime.fromisoformat(normalized).date()
+    except ValueError:
+        return None
+
+
+def effective_event_date(row, today):
+    start_date = parse_calendar_task_datetime(row["ev_start_date"])
+    if not start_date:
+        return None
+    recurrence = parse_json_text(row["ev_recurrence"])
+    rrule = recurrence.get("RRULE") if isinstance(recurrence, dict) else None
+    if isinstance(rrule, dict) and rrule.get("FREQ") == "YEARLY":
+        month = int(rrule.get("BYMONTH", start_date.month))
+        day = int(rrule.get("BYMONTHDAY", start_date.day))
+        candidate = safe_date(today.year, month, day)
+        if candidate and candidate < today:
+            candidate = safe_date(today.year + 1, month, day)
+        return candidate
+    return start_date
+
+
+def parse_json_text(value):
+    try:
+        return json.loads(value or "{}")
+    except json.JSONDecodeError:
+        return {}
+
+
+def safe_date(year, month, day):
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return None
+
+
 def build_dashboard():
     today = date.today()
     seven_days = today + timedelta(days=7)
@@ -194,7 +336,8 @@ def build_dashboard():
                 "upcoming30": upcoming_30,
                 "staleNextChargeDates": stale_dates,
                 "dataFile": str(SUBSCRIPTION_DATA_FILE),
-            }
+            },
+            "calendarTask": calendar_task_items(),
         },
     }
 
@@ -284,4 +427,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -84,7 +84,7 @@ button {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 18px;
 }
@@ -152,6 +152,16 @@ button {
   background: #fff7f5;
 }
 
+.item.calendar {
+  border-color: #c9d8e4;
+  background: #f2f7fb;
+}
+
+.item.today {
+  border-color: #9ac9ba;
+  background: #edf8f3;
+}
+
 .item strong,
 .item span {
   display: block;
@@ -194,4 +204,3 @@ button {
     grid-template-columns: 1fr;
   }
 }
-

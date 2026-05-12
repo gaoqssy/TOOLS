@@ -88,5 +88,9 @@ python3 tools_server.py
 http://127.0.0.1:8790/dashboard/
 ```
 
-当前看板读取固定支出数据。以后新增 Health、Knowledge、Life 工具时，应优先提供结构化 JSON 数据文件或 API，便于纳入同一个看板。
+当前看板读取：
 
+- 固定支出数据：`Finance/subscription-manager/data/recurring-expenses.json`
+- 日历清单数据：`/Users/gao/Library/Containers/com.xdiarys.www/Data/desktopcal.sqlite`
+
+日历清单只做只读接入。写入前需要先确认数据库字段语义，并备份原始 SQLite。
