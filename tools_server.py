@@ -188,7 +188,7 @@ def calendar_task_items():
                 """
                 SELECT ev_id, ev_content, ev_type, ev_start_date, ev_end_date, ev_status, ev_recurrence
                 FROM event_table
-                WHERE ev_content IS NOT NULL AND trim(ev_content) != ''
+                WHERE ev_content IS NOT NULL AND trim(ev_content) != '' AND ev_status = 1
                 """
             ):
                 anniversary = anniversary_item(row, today)
