@@ -42,6 +42,7 @@
 | 名称 | 分类 | 状态 | 用途 | 入口 / 运行方式 | 最后更新 |
 | --- | --- | --- | --- | --- | --- |
 | 固定支出管理器 | Finance | `prototype` | 管理订阅、会员、房租、话费、云服务等周期性支出。 | `Finance/subscription-manager/index.html` | 2026-05-11 |
+| TOOLS 总看板 | Inbox | `prototype` | 汇总所有工具数据，生成每日注意事项和概览。 | `dashboard/index.html`，推荐通过 `python3 tools_server.py` 打开 | 2026-05-12 |
 
 ## 想法池
 
@@ -57,4 +58,3 @@
 - 不把私人数据、密钥、账号信息提交到 GitHub。
 - 不确定分类时先放进 `Inbox/`，稳定后再移动到合适目录。
 - 不再维护但还有参考价值的工具移动到 `Archive/`。
-

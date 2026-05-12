@@ -20,5 +20,6 @@ out/
 *.log
 *.sqlite
 *.db
+.agent-state/
 Finance/subscription-manager/data/*.json
 !Finance/subscription-manager/data/.gitkeep
