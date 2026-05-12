@@ -11,6 +11,7 @@ const els = {
   notices: document.querySelector("#notices"),
   todayCalendarItems: document.querySelector("#todayCalendarItems"),
   calendarNext7: document.querySelector("#calendarNext7"),
+  anniversaries: document.querySelector("#anniversaries"),
 };
 
 function formatMoney(amount, currency = "CNY") {
@@ -87,6 +88,29 @@ function calendarNext7Items(calendarTask) {
   return [...items, ...events].sort((a, b) => a.date.localeCompare(b.date));
 }
 
+function renderAnniversaries(container, items) {
+  container.innerHTML = "";
+  if (!items.length) {
+    container.innerHTML = '<p class="empty">暂无纪念日。</p>';
+    return;
+  }
+  for (const item of items) {
+    const row = document.createElement("article");
+    row.className = "item anniversary";
+    const elapsed = item.hasStarted
+      ? `已经 ${item.daysSinceStart} 天`
+      : `还有 ${Math.abs(item.daysSinceStart)} 天开始`;
+    const nextText = item.daysUntilNext === 0 ? "今天" : `${item.daysUntilNext} 天后`;
+    row.innerHTML = `
+      <div>
+        <strong>${escapeHtml(item.title)}</strong>
+        <span>开始于 ${escapeHtml(item.startDate)} · ${elapsed} · 下一次 ${escapeHtml(item.nextDate)}（${nextText}）</span>
+      </div>
+    `;
+    container.appendChild(row);
+  }
+}
+
 function renderNotices(staleRecords) {
   els.notices.innerHTML = "";
   if (!staleRecords.length) {
@@ -128,6 +152,7 @@ async function renderDashboard() {
     renderList(els.upcoming30, finance.upcoming30, "未来 30 天没有固定支出扣费。");
     renderCalendarItems(els.todayCalendarItems, calendarTask.todayItems || [], "今天没有日历清单事项。");
     renderCalendarItems(els.calendarNext7, calendarNext7Items(calendarTask), "未来 7 天没有日历清单事项。");
+    renderAnniversaries(els.anniversaries, calendarTask.anniversaries || []);
     renderNotices(finance.staleNextChargeDates);
   } catch (error) {
     els.generatedAt.textContent = "无法连接 TOOLS 数据服务。请先运行 python3 tools_server.py。";

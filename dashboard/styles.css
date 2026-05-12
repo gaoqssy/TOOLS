@@ -162,6 +162,11 @@ button {
   background: #edf8f3;
 }
 
+.item.anniversary {
+  border-color: #d7c4e7;
+  background: #f7f2fb;
+}
+
 .item strong,
 .item span {
   display: block;

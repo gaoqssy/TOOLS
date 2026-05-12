@@ -13,6 +13,7 @@ When the user greets the agent, asks for notices, asks for a dashboard, or start
    - Today and next 7 days.
    - Next 30 days.
    - Fixed monthly and annualized spend.
+   - CalendarTask daily items and anniversaries.
    - Data quality warnings.
 4. Check `.agent-state/daily-dashboard.json` if it exists.
    - If no dashboard was produced today, provide the full dashboard and update the state.
@@ -43,3 +44,20 @@ Do not silently mutate overdue `nextChargeDate` values. For dashboards:
 - Flag records whose stored next charge date is before today.
 - Ask the user before advancing stored dates, unless the user explicitly says the payment has happened or asks to update/roll forward.
 
+## CalendarTask Agent Workflow
+
+When the user asks to add a schedule, task, or calendar-list item:
+
+1. Extract the date and content.
+2. Ask only for missing required fields:
+   - date
+   - content
+3. Write through `POST /api/calendar-task/items` when the TOOLS root service is running.
+4. The service must back up `desktopcal.sqlite` before writing.
+5. Confirm the written date and content in natural language.
+
+CalendarTask anniversaries are read from `event_table`. Dashboards should show:
+
+- start date
+- days since start, or days until start if the start date is in the future
+- next occurrence date

@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import sqlite3
 import tempfile
 from urllib.parse import urlparse
@@ -16,6 +17,7 @@ SUBSCRIPTION_DATA_FILE = ROOT_DIR / "Finance/subscription-manager/data/recurring
 CALENDAR_TASK_DB = Path.home() / "Library/Containers/com.xdiarys.www/Data/desktopcal.sqlite"
 AGENT_STATE_DIR = ROOT_DIR / ".agent-state"
 DAILY_DASHBOARD_FILE = AGENT_STATE_DIR / "daily-dashboard.json"
+CALENDAR_TASK_BACKUP_DIR = AGENT_STATE_DIR / "calendar-task-backups"
 SCHEMA_VERSION = 1
 SOURCE = "TOOLS/root-dashboard"
 
@@ -154,6 +156,7 @@ def calendar_task_items():
     end_day = today + timedelta(days=30)
     items = []
     events = []
+    anniversaries = []
 
     try:
         with sqlite3.connect(f"file:{CALENDAR_TASK_DB}?mode=ro", uri=True) as conn:
@@ -188,6 +191,9 @@ def calendar_task_items():
                 WHERE ev_content IS NOT NULL AND trim(ev_content) != ''
                 """
             ):
+                anniversary = anniversary_item(row, today)
+                if anniversary:
+                    anniversaries.append(anniversary)
                 event_date = effective_event_date(row, today)
                 if not event_date or not (today <= event_date <= end_day):
                     continue
@@ -211,17 +217,105 @@ def calendar_task_items():
 
     items.sort(key=lambda item: (item["date"], item["id"]))
     events.sort(key=lambda event: (event["date"], event["id"]))
+    anniversaries.sort(key=lambda item: (item["nextDate"], item["id"]))
     return {
         "available": True,
         "dataFile": str(CALENDAR_TASK_DB),
         "items": items,
         "events": events,
+        "anniversaries": anniversaries,
         "todayItems": [item for item in items if item["daysUntil"] == 0],
         "next7Items": [item for item in items if item["daysUntil"] <= 7],
         "next30Items": items,
         "next7Events": [event for event in events if event["daysUntil"] <= 7],
         "next30Events": events,
     }
+
+
+def append_calendar_task_item(payload):
+    if not CALENDAR_TASK_DB.exists():
+        raise ValueError("CalendarTask database not found")
+
+    item_date = parse_date(payload.get("date"))
+    content = str(payload.get("content", "")).strip()
+    if not item_date:
+        raise ValueError("date must use YYYY-MM-DD")
+    if not content:
+        raise ValueError("content is required")
+
+    backup_path = backup_calendar_task_database()
+    unique_id = f"dkcal_mdays_{item_date.strftime('%Y%m%d')}"
+    now_text = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_epoch = int(datetime.now().timestamp())
+
+    with sqlite3.connect(CALENDAR_TASK_DB) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT * FROM item_table WHERE it_unique_id = ? LIMIT 1",
+            (unique_id,),
+        ).fetchone()
+        if row:
+            lines = content_lines(row["it_content"])
+            if content not in lines:
+                lines.append(content)
+            new_content = "\n".join(lines)
+            conn.execute(
+                """
+                UPDATE item_table
+                SET it_content = ?, it_mdate = ?, it_stime = ?
+                WHERE it_id = ?
+                """,
+                (new_content, now_text, now_epoch, row["it_id"]),
+            )
+            item_id = row["it_id"]
+        else:
+            conn.execute(
+                """
+                INSERT INTO item_table (
+                    u_id, u_mid, pj_id, it_unique_id, it_content, it_cdate, it_mdate, it_stime
+                )
+                VALUES (0, ?, 0, ?, ?, ?, ?, ?)
+                """,
+                (calendar_task_user_mid(conn), unique_id, content, now_text, now_text, now_epoch),
+            )
+            item_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+
+    return {
+        "ok": True,
+        "id": item_id,
+        "date": item_date.isoformat(),
+        "content": content,
+        "backup": str(backup_path),
+    }
+
+
+def backup_calendar_task_database():
+    CALENDAR_TASK_BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_path = CALENDAR_TASK_BACKUP_DIR / f"desktopcal-{stamp}.sqlite"
+    shutil.copy2(CALENDAR_TASK_DB, backup_path)
+    return backup_path
+
+
+def calendar_task_user_mid(conn):
+    row = conn.execute(
+        """
+        SELECT sval FROM setting
+        WHERE name = 'login_key_user_uid' AND sval IS NOT NULL AND trim(sval) != ''
+        LIMIT 1
+        """
+    ).fetchone()
+    if row and row[0]:
+        return row[0]
+    row = conn.execute(
+        """
+        SELECT u_mid FROM item_table
+        WHERE u_mid IS NOT NULL AND trim(u_mid) != ''
+        LIMIT 1
+        """
+    ).fetchone()
+    return row[0] if row and row[0] else ""
 
 
 def date_from_item_unique_id(value):
@@ -264,6 +358,24 @@ def effective_event_date(row, today):
             candidate = safe_date(today.year + 1, month, day)
         return candidate
     return start_date
+
+
+def anniversary_item(row, today):
+    start_date = parse_calendar_task_datetime(row["ev_start_date"])
+    if not start_date:
+        return None
+    next_date = effective_event_date(row, today)
+    return {
+        "id": row["ev_id"],
+        "title": row["ev_content"],
+        "startDate": start_date.isoformat(),
+        "nextDate": next_date.isoformat() if next_date else None,
+        "daysUntilNext": (next_date - today).days if next_date else None,
+        "daysSinceStart": (today - start_date).days,
+        "hasStarted": start_date <= today,
+        "type": row["ev_type"],
+        "status": row["ev_status"],
+    }
 
 
 def parse_json_text(value):
@@ -361,7 +473,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def end_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         super().end_headers()
 
@@ -384,6 +496,17 @@ class Handler(SimpleHTTPRequestHandler):
             self.respond_json(read_json(DAILY_DASHBOARD_FILE, {}))
             return
         super().do_GET()
+
+    def do_POST(self):
+        path = urlparse(self.path).path
+        try:
+            payload = self.read_body()
+            if path == "/api/calendar-task/items":
+                self.respond_json(append_calendar_task_item(payload), status=201)
+                return
+            self.send_error(404, "Not found")
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError, sqlite3.Error, OSError) as error:
+            self.respond_json({"error": str(error)}, status=400)
 
     def do_PUT(self):
         path = urlparse(self.path).path

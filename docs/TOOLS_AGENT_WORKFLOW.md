@@ -49,6 +49,9 @@ PUT /api/subscription-records
 - 今日是否有扣费
 - 未来 7 天扣费
 - 未来 30 天扣费
+- 今日日历清单
+- 未来 7 天日程 / 清单
+- 纪念日：开始日期、到今天已经多少天、下一次日期
 - 月均固定支出
 - 年化固定支出
 - 数据质量提醒
@@ -93,4 +96,33 @@ http://127.0.0.1:8790/dashboard/
 - 固定支出数据：`Finance/subscription-manager/data/recurring-expenses.json`
 - 日历清单数据：`/Users/gao/Library/Containers/com.xdiarys.www/Data/desktopcal.sqlite`
 
-日历清单只做只读接入。写入前需要先确认数据库字段语义，并备份原始 SQLite。
+## 日历清单写入
+
+当用户说“帮我加一个日程”“明天加一个事项”“某天记一下某事”时，agent 应提取日期和内容。
+
+必填字段：
+
+- 日期：`YYYY-MM-DD`
+- 内容
+
+写入接口：
+
+```text
+POST /api/calendar-task/items
+```
+
+请求示例：
+
+```json
+{
+  "date": "2026-05-14",
+  "content": "北医三院复诊"
+}
+```
+
+写入策略：
+
+- 写入前自动备份 `desktopcal.sqlite` 到 `.agent-state/calendar-task-backups/`。
+- 如果当天已有清单，则把内容追加为新的一行。
+- 如果当天没有清单，则新建 `item_table` 行。
+- 不直接写纪念日；纪念日先只读展示，后续确认字段语义后再开放写入。
