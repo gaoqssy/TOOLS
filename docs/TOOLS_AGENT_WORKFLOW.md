@@ -125,4 +125,5 @@ POST /api/calendar-task/items
 - 写入前自动备份 `desktopcal.sqlite` 到 `.agent-state/calendar-task-backups/`。
 - 如果当天已有清单，则把内容追加为新的一行。
 - 如果当天没有清单，则新建 `item_table` 行。
+- 写入后自动刷新“日历清单”App：优先 AppleScript 退出，失败时用进程结束兜底，然后重新打开。
 - 不直接写纪念日；纪念日先只读展示，后续确认字段语义后再开放写入。

@@ -8,7 +8,9 @@ from pathlib import Path
 import re
 import shutil
 import sqlite3
+import subprocess
 import tempfile
+import time
 from urllib.parse import urlparse
 
 
@@ -281,12 +283,18 @@ def append_calendar_task_item(payload):
             item_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         conn.commit()
 
+    refresh_result = refresh_calendar_task_app() if payload.get("refreshApp", True) else {
+        "enabled": False,
+        "message": "App refresh skipped by request",
+    }
+
     return {
         "ok": True,
         "id": item_id,
         "date": item_date.isoformat(),
         "content": content,
         "backup": str(backup_path),
+        "appRefresh": refresh_result,
     }
 
 
@@ -316,6 +324,54 @@ def calendar_task_user_mid(conn):
         """
     ).fetchone()
     return row[0] if row and row[0] else ""
+
+
+def refresh_calendar_task_app():
+    result = {
+        "enabled": True,
+        "quit": False,
+        "opened": False,
+        "method": None,
+        "message": "",
+    }
+
+    quit_script = 'tell application id "com.xdiarys.www" to quit'
+    quit_run = subprocess.run(
+        ["/usr/bin/osascript", "-e", quit_script],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if quit_run.returncode == 0:
+        result["quit"] = True
+        result["method"] = "osascript"
+        time.sleep(0.8)
+    else:
+        pkill_run = subprocess.run(
+            ["/usr/bin/pkill", "-x", "CalendarTask"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if pkill_run.returncode in [0, 1]:
+            result["quit"] = True
+            result["method"] = "pkill"
+            time.sleep(0.8)
+        else:
+            result["message"] = pkill_run.stderr.strip() or quit_run.stderr.strip()
+
+    open_run = subprocess.run(
+        ["/usr/bin/open", "-b", "com.xdiarys.www"],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    result["opened"] = open_run.returncode == 0
+    if not result["opened"]:
+        result["message"] = open_run.stderr.strip() or "Failed to open CalendarTask"
+    elif not result["message"]:
+        result["message"] = "CalendarTask refreshed"
+    return result
 
 
 def date_from_item_unique_id(value):

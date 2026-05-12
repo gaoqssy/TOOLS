@@ -54,7 +54,8 @@ When the user asks to add a schedule, task, or calendar-list item:
    - content
 3. Write through `POST /api/calendar-task/items` when the TOOLS root service is running.
 4. The service must back up `desktopcal.sqlite` before writing.
-5. Confirm the written date and content in natural language.
+5. The service refreshes CalendarTask after writing so the app UI reloads the SQLite data.
+6. Confirm the written date, content, backup path, and refresh result in natural language.
 
 CalendarTask anniversaries are read from `event_table`. Dashboards should show:
 
