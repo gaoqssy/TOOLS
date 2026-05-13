@@ -15,7 +15,6 @@ build/
 out/
 .next/
 .vite/
-dashboard/static.html
 
 # Logs and local state
 *.log
