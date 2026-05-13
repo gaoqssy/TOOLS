@@ -44,24 +44,6 @@ PUT /api/subscription-records
 
 当用户当天第一次说“早上好”“有什么注意事项”“今日看板”“帮我看看今天”等语义时，agent 应读取 `TOOLS` 数据并生成完整看板。
 
-默认方式：
-
-- 不启动 `tools_server.py`。
-- 先生成静态看板快照：
-
-```bash
-python3 /Users/gao/Desktop/TOOLS/tools/dashboard_panel.py --root /Users/gao/Desktop/TOOLS
-```
-
-- 然后给用户静态看板入口：
-
-```text
-file:///Users/gao/Desktop/TOOLS/dashboard/static.html
-```
-
-- 同时在对话里给一版自然语言摘要。
-- 只有需要网页实时 API 或写入数据时，才启动根服务。
-
 看板至少包含：
 
 - 今日是否有扣费
