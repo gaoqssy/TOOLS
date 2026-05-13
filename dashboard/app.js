@@ -14,6 +14,16 @@ const els = {
   anniversaries: document.querySelector("#anniversaries"),
 };
 
+const embeddedDashboardData = document.querySelector("#dashboard-data");
+let embeddedDashboard = null;
+if (embeddedDashboardData) {
+  try {
+    embeddedDashboard = JSON.parse(embeddedDashboardData.textContent);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 function formatMoney(amount, currency = "CNY") {
   return new Intl.NumberFormat("zh-CN", {
     style: "currency",
@@ -132,6 +142,9 @@ function renderNotices(staleRecords) {
 
 async function loadDashboard() {
   els.generatedAt.textContent = "正在读取工具数据...";
+  if (embeddedDashboard) {
+    return embeddedDashboard;
+  }
   const response = await fetch("/api/dashboard", { cache: "no-store" });
   if (!response.ok) throw new Error(`Dashboard API returned ${response.status}`);
   return response.json();
@@ -142,7 +155,8 @@ async function renderDashboard() {
     const data = await loadDashboard();
     const finance = data.tools.subscriptionManager;
     const calendarTask = data.tools.calendarTask || {};
-    els.generatedAt.textContent = `${data.date} 生成 · ${data.generatedAt}`;
+    const mode = embeddedDashboard ? "静态快照" : "实时服务";
+    els.generatedAt.textContent = `${data.date} 生成 · ${data.generatedAt} · ${mode}`;
     els.activeCount.textContent = String(finance.activeCount);
     els.monthlyTotal.textContent = formatMoneyMap(finance.monthlyTotal);
     els.next7Total.textContent = formatMoneyMap(finance.next7Total);
