@@ -9,15 +9,21 @@ When the user greets the agent, asks for notices, asks for a dashboard, or start
 1. Inspect `/Users/gao/Desktop/TOOLS`.
 2. Read registered tool data files, starting with:
    - `Finance/subscription-manager/data/recurring-expenses.json`
-3. Produce a concise natural-language dashboard:
+3. Generate the static dashboard snapshot with:
+   - `python3 /Users/gao/Desktop/TOOLS/tools/dashboard_panel.py --root /Users/gao/Desktop/TOOLS`
+   - Provide the local file link: `file:///Users/gao/Desktop/TOOLS/dashboard/static.html`
+   - Do not start `tools_server.py` for greeting/dashboard-only interactions.
+4. Produce a concise natural-language dashboard:
    - Today and next 7 days.
    - Next 30 days.
    - Fixed monthly and annualized spend.
    - CalendarTask daily items and anniversaries.
    - Data quality warnings.
-4. Check `.agent-state/daily-dashboard.json` if it exists.
+5. Check `.agent-state/daily-dashboard.json` if it exists.
    - If no dashboard was produced today, provide the full dashboard and update the state.
    - If today's dashboard was already produced, give a shorter update unless the user asks for a full refresh.
+
+Start the root data service only when a task needs live browser APIs or write operations, such as adding CalendarTask items or editing subscription records.
 
 ## Fixed Expense Agent Workflow
 
