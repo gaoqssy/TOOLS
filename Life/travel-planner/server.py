@@ -19,6 +19,36 @@ SCHEMA_VERSION = 1
 SOURCE = "TOOLS/Life/travel-planner"
 STORAGE_KEY = "tools.life.travel_planner.v1"
 SEARCH_USER_AGENT = "TOOLS-travel-planner/1.0 (sg22@mails.tsinghua.edu.cn)"
+SEARCH_ALIAS_PAIRS = [
+    ("东京", "東京"),
+    ("京都", "京都"),
+    ("大阪", "大阪"),
+    ("名古屋", "名古屋"),
+    ("札幌", "札幌"),
+    ("奈良", "奈良"),
+    ("神户", "神戸"),
+    ("横滨", "横浜"),
+    ("福冈", "福岡"),
+    ("新宿", "新宿"),
+    ("涩谷", "渋谷"),
+    ("站", "駅"),
+    ("机场", "空港"),
+]
+SEARCH_ENGLISH_PAIRS = [
+    ("东京", "Tokyo"),
+    ("京都", "Kyoto"),
+    ("大阪", "Osaka"),
+    ("名古屋", "Nagoya"),
+    ("札幌", "Sapporo"),
+    ("奈良", "Nara"),
+    ("神户", "Kobe"),
+    ("横滨", "Yokohama"),
+    ("福冈", "Fukuoka"),
+    ("新宿", "Shinjuku"),
+    ("涩谷", "Shibuya"),
+    ("站", " Station"),
+    ("机场", " Airport"),
+]
 
 
 def empty_payload():
@@ -88,6 +118,38 @@ def search_places(query):
     if not query:
         return {"results": []}
 
+    results = []
+    seen = set()
+    for candidate in search_query_variants(query):
+        for result in photon_search(candidate):
+            key = (round(float(result["latitude"]), 6), round(float(result["longitude"]), 6), result["name"])
+            if key in seen:
+                continue
+            seen.add(key)
+            results.append(result)
+        if len(results) >= 8:
+            break
+    return {"results": results[:8]}
+
+
+def search_query_variants(query):
+    localized = query
+    for source, target in SEARCH_ALIAS_PAIRS:
+        localized = localized.replace(source, target)
+    english = query
+    for source, target in SEARCH_ENGLISH_PAIRS:
+        english = english.replace(source, target)
+
+    variants = []
+    preferred_values = [localized, english, query] if localized != query or english != query else [query]
+    for value in preferred_values:
+        value = " ".join(value.split())
+        if value and value not in variants:
+            variants.append(value)
+    return variants
+
+
+def photon_search(query):
     params = urlencode({"q": query, "limit": 8})
     request = Request(
         f"https://photon.komoot.io/api/?{params}",
@@ -122,7 +184,7 @@ def search_places(query):
             "longitude": coordinates[0],
             "source": "photon",
         })
-    return {"results": results}
+    return results
 
 
 class Handler(SimpleHTTPRequestHandler):

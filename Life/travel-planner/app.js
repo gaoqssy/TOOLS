@@ -45,6 +45,36 @@ const currencySymbols = {
 
 const DEFAULT_MAP_CENTER = [39.9042, 116.4074];
 const PAGES_URL = "https://gaoqssy.github.io/TOOLS/Life/travel-planner/";
+const SEARCH_ALIAS_PAIRS = [
+  ["东京", "東京"],
+  ["京都", "京都"],
+  ["大阪", "大阪"],
+  ["名古屋", "名古屋"],
+  ["札幌", "札幌"],
+  ["奈良", "奈良"],
+  ["神户", "神戸"],
+  ["横滨", "横浜"],
+  ["福冈", "福岡"],
+  ["新宿", "新宿"],
+  ["涩谷", "渋谷"],
+  ["站", "駅"],
+  ["机场", "空港"],
+];
+const SEARCH_ENGLISH_PAIRS = [
+  ["东京", "Tokyo"],
+  ["京都", "Kyoto"],
+  ["大阪", "Osaka"],
+  ["名古屋", "Nagoya"],
+  ["札幌", "Sapporo"],
+  ["奈良", "Nara"],
+  ["神户", "Kobe"],
+  ["横滨", "Yokohama"],
+  ["福冈", "Fukuoka"],
+  ["新宿", "Shinjuku"],
+  ["涩谷", "Shibuya"],
+  ["站", " Station"],
+  ["机场", " Airport"],
+];
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -831,6 +861,22 @@ async function fetchPlaceSearchResults(query) {
     }
   }
 
+  const results = [];
+  const seen = new Set();
+  for (const candidate of searchQueryVariants(query)) {
+    const matches = await photonSearch(candidate);
+    for (const result of matches) {
+      const key = `${Number(result.latitude).toFixed(6)}:${Number(result.longitude).toFixed(6)}:${result.name}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push(result);
+    }
+    if (results.length >= 8) break;
+  }
+  return results.slice(0, 8);
+}
+
+async function photonSearch(query) {
   const params = new URLSearchParams({ q: query, limit: "8" });
   const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`, {
     headers: { Accept: "application/json" },
@@ -848,6 +894,24 @@ async function fetchPlaceSearchResults(query) {
       source: "photon",
     };
   }).filter((result) => Number.isFinite(Number(result.latitude)) && Number.isFinite(Number(result.longitude)));
+}
+
+function searchQueryVariants(query) {
+  let localized = query;
+  SEARCH_ALIAS_PAIRS.forEach(([source, target]) => {
+    localized = localized.replaceAll(source, target);
+  });
+  let english = query;
+  SEARCH_ENGLISH_PAIRS.forEach(([source, target]) => {
+    english = english.replaceAll(source, target);
+  });
+  const variants = [];
+  const preferredValues = localized !== query || english !== query ? [localized, english, query] : [query];
+  preferredValues.forEach((value) => {
+    const normalized = value.split(/\s+/).filter(Boolean).join(" ");
+    if (normalized && !variants.includes(normalized)) variants.push(normalized);
+  });
+  return variants;
 }
 
 function renderSearchResults() {
