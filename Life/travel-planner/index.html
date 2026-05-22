@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>旅行规划工具</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Life / Travel Planner</p>
+        <h1>旅行规划工具</h1>
+        <p class="subtitle">把多人旅行的预算、行程、地图点位和清单放进一个 Trip 空间。</p>
+      </div>
+      <div class="header-actions">
+        <button class="button secondary" id="exportJsonButton" type="button">导出协作包</button>
+        <button class="button secondary" id="importJsonButton" type="button">导入协作包</button>
+        <input class="visually-hidden" id="importJsonInput" type="file" accept="application/json,.json">
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="panel trip-sidebar">
+        <div class="panel-heading">
+          <div>
+            <h2>旅行列表</h2>
+            <p id="syncStatus">正在检查数据服务...</p>
+          </div>
+          <button class="icon-button" id="newTripButton" type="button" aria-label="新建旅行" title="新建旅行">+</button>
+        </div>
+        <div class="trip-list" id="tripList"></div>
+        <p class="empty-state" id="tripEmptyState">还没有旅行。先新建一个 Trip。</p>
+      </aside>
+
+      <section class="workspace">
+        <section class="summary-grid" aria-label="旅行总览">
+          <article class="summary-card">
+            <span>计划总预算</span>
+            <strong id="totalBudget">¥0.00</strong>
+          </article>
+          <article class="summary-card">
+            <span>人均预算</span>
+            <strong id="perPersonBudget">¥0.00</strong>
+          </article>
+          <article class="summary-card">
+            <span>行程天数</span>
+            <strong id="tripDays">0</strong>
+          </article>
+          <article class="summary-card">
+            <span>未完成清单</span>
+            <strong id="openChecklistCount">0</strong>
+          </article>
+        </section>
+
+        <section class="panel trip-detail-panel">
+          <div class="panel-heading detail-heading">
+            <div>
+              <h2 id="detailTitle">新建旅行</h2>
+              <p id="detailSubtitle">维护旅行基础信息、成员和状态。</p>
+            </div>
+            <button class="button danger" id="deleteTripButton" type="button" disabled>删除旅行</button>
+          </div>
+
+          <form class="trip-form" id="tripForm">
+            <input id="tripIdInput" type="hidden">
+            <label>
+              旅行名称
+              <input id="tripNameInput" type="text" placeholder="例如：北京三日游" required>
+            </label>
+            <label>
+              目的地
+              <input id="destinationInput" type="text" placeholder="城市、国家或路线">
+            </label>
+            <div class="form-row four-cols">
+              <label>
+                出发日期
+                <input id="startDateInput" type="date">
+              </label>
+              <label>
+                结束日期
+                <input id="endDateInput" type="date">
+              </label>
+              <label>
+                状态
+                <select id="tripStatusInput">
+                  <option value="planning">规划中</option>
+                  <option value="booked">已预订</option>
+                  <option value="traveling">旅行中</option>
+                  <option value="done">已完成</option>
+                  <option value="archived">已归档</option>
+                </select>
+              </label>
+              <label>
+                成员
+                <input id="membersInput" type="text" placeholder="用逗号分隔，例如：我, 朋友A">
+              </label>
+            </div>
+            <label>
+              备注
+              <textarea id="tripNotesInput" rows="2" placeholder="旅行目标、偏好、风险、订票入口等"></textarea>
+            </label>
+            <div class="form-actions">
+              <button class="button primary" type="submit">保存旅行</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="tabbar" aria-label="旅行规划模块">
+          <button class="tab active" data-tab="overview" type="button">总览</button>
+          <button class="tab" data-tab="itinerary" type="button">行程</button>
+          <button class="tab" data-tab="budget" type="button">预算</button>
+          <button class="tab" data-tab="places" type="button">地图点位</button>
+          <button class="tab" data-tab="checklist" type="button">清单</button>
+        </section>
+
+        <section class="tab-panel active" id="overviewTab">
+          <div class="overview-grid">
+            <article class="panel">
+              <h2>近期行程</h2>
+              <div class="list" id="upcomingItinerary"></div>
+            </article>
+            <article class="panel">
+              <h2>预算概览</h2>
+              <div class="budget-bars" id="budgetOverview"></div>
+            </article>
+            <article class="panel">
+              <h2>待办提醒</h2>
+              <div class="list" id="checklistOverview"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="itineraryTab">
+          <div class="two-column-grid">
+            <form class="panel stack-form" id="itineraryForm">
+              <div class="panel-heading">
+                <div>
+                  <h2 id="itineraryFormTitle">新增行程</h2>
+                  <p>按日期维护活动、地点和费用预估。</p>
+                </div>
+                <button class="button subtle" id="resetItineraryButton" type="button">重置</button>
+              </div>
+              <input id="itineraryIdInput" type="hidden">
+              <label>
+                标题
+                <input id="itineraryTitleInput" type="text" placeholder="例如：参观故宫" required>
+              </label>
+              <div class="form-row">
+                <label>
+                  日期
+                  <input id="itineraryDateInput" type="date">
+                </label>
+                <label>
+                  类型
+                  <select id="itineraryCategoryInput">
+                    <option value="景点">景点</option>
+                    <option value="交通">交通</option>
+                    <option value="餐饮">餐饮</option>
+                    <option value="住宿">住宿</option>
+                    <option value="购物">购物</option>
+                    <option value="其他">其他</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  开始时间
+                  <input id="startTimeInput" type="time">
+                </label>
+                <label>
+                  结束时间
+                  <input id="endTimeInput" type="time">
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  地点
+                  <select id="itineraryPlaceInput">
+                    <option value="">不关联地点</option>
+                  </select>
+                </label>
+                <label>
+                  负责人
+                  <input id="itineraryOwnerInput" type="text" list="memberSuggestions" placeholder="成员姓名">
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  费用预估
+                  <input id="estimatedCostInput" type="number" min="0" step="0.01" placeholder="0">
+                </label>
+                <label>
+                  币种
+                  <select id="itineraryCurrencyInput">
+                    <option value="CNY">CNY</option>
+                    <option value="USD">USD</option>
+                    <option value="HKD">HKD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="JPY">JPY</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                备注
+                <textarea id="itineraryNotesInput" rows="3" placeholder="门票、交通、集合点、预订号等"></textarea>
+              </label>
+              <button class="button primary" type="submit">保存行程</button>
+            </form>
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>行程列表</h2>
+                  <p>按日期和时间自动排序。</p>
+                </div>
+              </div>
+              <div class="list timeline" id="itineraryList"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="budgetTab">
+          <div class="two-column-grid">
+            <form class="panel stack-form" id="budgetForm">
+              <div class="panel-heading">
+                <div>
+                  <h2 id="budgetFormTitle">新增预算</h2>
+                  <p>先做计划预算，不记录实际支付。</p>
+                </div>
+                <button class="button subtle" id="resetBudgetButton" type="button">重置</button>
+              </div>
+              <input id="budgetIdInput" type="hidden">
+              <div class="form-row">
+                <label>
+                  分类
+                  <select id="budgetCategoryInput">
+                    <option value="交通">交通</option>
+                    <option value="住宿">住宿</option>
+                    <option value="餐饮">餐饮</option>
+                    <option value="门票">门票</option>
+                    <option value="购物">购物</option>
+                    <option value="其他">其他</option>
+                  </select>
+                </label>
+                <label>
+                  金额
+                  <input id="budgetAmountInput" type="number" min="0" step="0.01" placeholder="1000" required>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  币种
+                  <select id="budgetCurrencyInput">
+                    <option value="CNY">CNY</option>
+                    <option value="USD">USD</option>
+                    <option value="HKD">HKD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="JPY">JPY</option>
+                  </select>
+                </label>
+                <label>
+                  适用成员
+                  <input id="budgetMembersInput" type="text" placeholder="留空表示全员">
+                </label>
+              </div>
+              <label>
+                备注
+                <textarea id="budgetNotesInput" rows="3" placeholder="价格依据、预订链接、优惠信息等"></textarea>
+              </label>
+              <button class="button primary" type="submit">保存预算</button>
+            </form>
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>预算列表</h2>
+                  <p>按分类汇总总预算和人均预算。</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>分类</th>
+                      <th>金额</th>
+                      <th>适用成员</th>
+                      <th>备注</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="budgetTableBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="placesTab">
+          <div class="two-column-grid map-layout">
+            <form class="panel stack-form" id="placeForm">
+              <div class="panel-heading">
+                <div>
+                  <h2 id="placeFormTitle">新增地点</h2>
+                  <p>手动输入经纬度，地图会展示相对位置。</p>
+                </div>
+                <button class="button subtle" id="resetPlaceButton" type="button">重置</button>
+              </div>
+              <input id="placeIdInput" type="hidden">
+              <label>
+                地点名称
+                <input id="placeNameInput" type="text" placeholder="例如：故宫博物院" required>
+              </label>
+              <label>
+                地址 / 备注
+                <input id="placeAddressInput" type="text" placeholder="街道、集合点或 Google Maps 备注">
+              </label>
+              <div class="form-row">
+                <label>
+                  纬度
+                  <input id="latitudeInput" type="number" min="-90" max="90" step="0.000001" placeholder="39.916345">
+                </label>
+                <label>
+                  经度
+                  <input id="longitudeInput" type="number" min="-180" max="180" step="0.000001" placeholder="116.397155">
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  分类
+                  <select id="placeCategoryInput">
+                    <option value="景点">景点</option>
+                    <option value="住宿">住宿</option>
+                    <option value="餐饮">餐饮</option>
+                    <option value="交通">交通</option>
+                    <option value="购物">购物</option>
+                    <option value="其他">其他</option>
+                  </select>
+                </label>
+                <label>
+                  优先级
+                  <select id="placePriorityInput">
+                    <option value="must">必去</option>
+                    <option value="nice">可选</option>
+                    <option value="backup">备选</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                备注
+                <textarea id="placeNotesInput" rows="3" placeholder="开放时间、门票、拍照点、注意事项等"></textarea>
+              </label>
+              <button class="button primary" type="submit">保存地点</button>
+            </form>
+            <section class="panel map-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>地图点位</h2>
+                  <p>没有底图，先用于手动点位和相对位置管理。</p>
+                </div>
+              </div>
+              <div class="map-canvas" id="mapCanvas"></div>
+              <div class="place-list" id="placeList"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="checklistTab">
+          <div class="two-column-grid">
+            <form class="panel stack-form" id="checklistForm">
+              <div class="panel-heading">
+                <div>
+                  <h2 id="checklistFormTitle">新增清单项</h2>
+                  <p>行前待办、打包、证件和预订信息统一维护。</p>
+                </div>
+                <button class="button subtle" id="resetChecklistButton" type="button">重置</button>
+              </div>
+              <input id="checklistIdInput" type="hidden">
+              <label>
+                内容
+                <input id="checklistContentInput" type="text" placeholder="例如：确认酒店入住时间" required>
+              </label>
+              <div class="form-row">
+                <label>
+                  类型
+                  <select id="checklistTypeInput">
+                    <option value="todo">行前待办</option>
+                    <option value="packing">打包清单</option>
+                    <option value="document">证件 / 预订</option>
+                  </select>
+                </label>
+                <label>
+                  状态
+                  <select id="checklistStatusInput">
+                    <option value="open">未完成</option>
+                    <option value="done">已完成</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  负责人
+                  <input id="checklistOwnerInput" type="text" list="memberSuggestions" placeholder="成员姓名">
+                </label>
+                <label>
+                  截止日期
+                  <input id="checklistDueDateInput" type="date">
+                </label>
+              </div>
+              <label>
+                备注
+                <textarea id="checklistNotesInput" rows="3" placeholder="链接、证件号提示、确认方式等"></textarea>
+              </label>
+              <button class="button primary" type="submit">保存清单项</button>
+            </form>
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>清单中心</h2>
+                  <p>勾选后会标记为已完成。</p>
+                </div>
+              </div>
+              <div class="list checklist-list" id="checklistList"></div>
+            </section>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <datalist id="memberSuggestions"></datalist>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -43,10 +43,12 @@
 | --- | --- | --- | --- | --- | --- |
 | 固定支出管理器 | Finance | `prototype` | 管理订阅、会员、房租、话费、云服务等周期性支出。 | `Finance/subscription-manager/index.html` | 2026-05-11 |
 | TOOLS 总看板 | Inbox | `prototype` | 汇总所有工具数据，生成每日注意事项和概览。 | `dashboard/index.html`，推荐通过 `python3 tools_server.py` 打开 | 2026-05-12 |
+| 旅行规划工具 | Life | `prototype` | 管理多人旅行的预算、行程、地图点位、清单和 JSON 协作包。 | `Life/travel-planner/index.html`，推荐通过 `python3 Life/travel-planner/server.py` 打开 | 2026-05-22 |
 
 ## 想法池
 
 - Health：个人健康看板，整合体重、睡眠、运动和情绪趋势。
+- Life：旅行规划工具，管理多人旅行的预算、行程、地图点位和清单。
 - Life：订阅和账单提醒，汇总续费日期和每月固定开销。
 - Knowledge：阅读到笔记的整理流程，覆盖书籍、论文、文章和知识卡片。
 - Finance：支出自动分类和月度预算复盘工具。

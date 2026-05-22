@@ -23,3 +23,5 @@ out/
 .agent-state/
 Finance/subscription-manager/data/*.json
 !Finance/subscription-manager/data/.gitkeep
+Life/travel-planner/data/*.json
+!Life/travel-planner/data/.gitkeep
