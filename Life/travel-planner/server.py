@@ -6,6 +6,10 @@ import os
 from pathlib import Path
 import tempfile
 from urllib.parse import urlparse
+from urllib.parse import parse_qs
+from urllib.parse import urlencode
+from urllib.request import Request
+from urllib.request import urlopen
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -14,6 +18,7 @@ DATA_FILE = DATA_DIR / "trips.json"
 SCHEMA_VERSION = 1
 SOURCE = "TOOLS/Life/travel-planner"
 STORAGE_KEY = "tools.life.travel_planner.v1"
+SEARCH_USER_AGENT = "TOOLS-travel-planner/1.0 (sg22@mails.tsinghua.edu.cn)"
 
 
 def empty_payload():
@@ -78,6 +83,48 @@ def write_payload(payload):
     return output
 
 
+def search_places(query):
+    query = (query or "").strip()
+    if not query:
+        return {"results": []}
+
+    params = urlencode({"q": query, "limit": 8})
+    request = Request(
+        f"https://photon.komoot.io/api/?{params}",
+        headers={
+            "Accept": "application/json",
+            "User-Agent": SEARCH_USER_AGENT,
+        },
+    )
+    with urlopen(request, timeout=8) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+
+    results = []
+    for feature in payload.get("features", []):
+        properties = feature.get("properties") or {}
+        geometry = feature.get("geometry") or {}
+        coordinates = geometry.get("coordinates") or []
+        if len(coordinates) < 2:
+            continue
+        title = properties.get("name") or query
+        address_parts = [
+            properties.get("street"),
+            properties.get("district"),
+            properties.get("city"),
+            properties.get("state"),
+            properties.get("country"),
+        ]
+        address = ", ".join([part for part in address_parts if part])
+        results.append({
+            "name": title,
+            "displayName": address or title,
+            "latitude": coordinates[1],
+            "longitude": coordinates[0],
+            "source": "photon",
+        })
+    return {"results": results}
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(APP_DIR), **kwargs)
@@ -99,6 +146,13 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/api/records":
             self.respond_json(read_payload())
+            return
+        if path == "/api/place-search":
+            query = parse_qs(urlparse(self.path).query).get("q", [""])[0]
+            try:
+                self.respond_json(search_places(query))
+            except (OSError, TimeoutError, json.JSONDecodeError) as error:
+                self.respond_json({"error": str(error), "results": []}, status=502)
             return
         super().do_GET()
 

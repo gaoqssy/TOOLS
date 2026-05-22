@@ -601,7 +601,9 @@ function resetItineraryForm() {
 
 function renderPlaces() {
   const trip = getSelectedTrip();
-  renderMap(trip);
+  if (state.activeTab === "places" || state.map) {
+    renderMap(trip);
+  }
   if (!trip || !trip.places.length) {
     els.placeList.innerHTML = emptyMessage("还没有地点。");
     return;
@@ -812,23 +814,40 @@ async function searchPlaces(event) {
   const query = els.mapSearchInput.value.trim();
   if (!query) return;
   els.mapSearchResults.innerHTML = `<p class="muted">正在搜索...</p>`;
-  const params = new URLSearchParams({
-    q: query,
-    format: "jsonv2",
-    limit: "6",
-    addressdetails: "1",
-    "accept-language": "zh-CN",
-  });
   try {
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
-      headers: { Accept: "application/json" },
-    });
-    if (!response.ok) throw new Error("search failed");
-    state.searchResults = await response.json();
+    state.searchResults = await fetchPlaceSearchResults(query);
     renderSearchResults();
   } catch (error) {
     els.mapSearchResults.innerHTML = `<p class="empty-state">搜索暂时不可用。可以直接点击地图或手动输入经纬度。</p>`;
   }
+}
+
+async function fetchPlaceSearchResults(query) {
+  if (state.serviceMode) {
+    const response = await fetch(`api/place-search?q=${encodeURIComponent(query)}`, { cache: "no-store" });
+    if (response.ok) {
+      const payload = await response.json();
+      return Array.isArray(payload.results) ? payload.results : [];
+    }
+  }
+
+  const params = new URLSearchParams({ q: query, limit: "8" });
+  const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) throw new Error("search failed");
+  const payload = await response.json();
+  return (payload.features || []).map((feature) => {
+    const properties = feature.properties || {};
+    const coordinates = feature.geometry?.coordinates || [];
+    return {
+      name: properties.name || query,
+      displayName: [properties.street, properties.district, properties.city, properties.state, properties.country].filter(Boolean).join(", ") || properties.name || query,
+      latitude: coordinates[1],
+      longitude: coordinates[0],
+      source: "photon",
+    };
+  }).filter((result) => Number.isFinite(Number(result.latitude)) && Number.isFinite(Number(result.longitude)));
 }
 
 function renderSearchResults() {
@@ -837,8 +856,8 @@ function renderSearchResults() {
     return;
   }
   els.mapSearchResults.innerHTML = state.searchResults.map((result, index) => {
-    const title = result.name || result.display_name?.split(",")[0] || "未命名地点";
-    const address = result.display_name || "";
+    const title = result.name || result.displayName?.split(",")[0] || "未命名地点";
+    const address = result.displayName || "";
     return `<button class="search-result" data-result-index="${index}" type="button">
       <strong>${escapeHtml(title)}</strong>
       <span>${escapeHtml(address)}</span>
@@ -851,16 +870,16 @@ function handleSearchResultClick(event) {
   if (!button) return;
   const result = state.searchResults[Number(button.dataset.resultIndex)];
   if (!result) return;
-  const title = result.name || result.display_name?.split(",")[0] || els.mapSearchInput.value.trim();
+  const title = result.name || result.displayName?.split(",")[0] || els.mapSearchInput.value.trim();
   els.placeNameInput.value = title;
-  els.placeAddressInput.value = result.display_name || "";
-  els.latitudeInput.value = Number(result.lat).toFixed(6);
-  els.longitudeInput.value = Number(result.lon).toFixed(6);
+  els.placeAddressInput.value = result.displayName || "";
+  els.latitudeInput.value = Number(result.latitude).toFixed(6);
+  els.longitudeInput.value = Number(result.longitude).toFixed(6);
   els.mapHint.textContent = `已填入搜索结果坐标：${els.latitudeInput.value}, ${els.longitudeInput.value}`;
   if (state.map) {
-    state.map.setView([Number(result.lat), Number(result.lon)], 15);
+    state.map.setView([Number(result.latitude), Number(result.longitude)], 15);
     L.popup()
-      .setLatLng([Number(result.lat), Number(result.lon)])
+      .setLatLng([Number(result.latitude), Number(result.longitude)])
       .setContent(`<strong>${escapeHtml(title)}</strong><br>保存地点后会出现在点位列表。`)
       .openOn(state.map);
   }
@@ -990,8 +1009,11 @@ function renderTabs() {
   document.querySelectorAll(".tab-panel").forEach((panel) => {
     panel.classList.toggle("active", panel.id === `${state.activeTab}Tab`);
   });
-  if (state.activeTab === "places" && state.map) {
-    setTimeout(() => state.map.invalidateSize(), 0);
+  if (state.activeTab === "places") {
+    renderPlaces();
+    if (state.map) {
+      setTimeout(() => state.map.invalidateSize(), 0);
+    }
   }
 }
 
