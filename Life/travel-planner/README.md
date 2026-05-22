@@ -25,6 +25,8 @@ http://127.0.0.1:8788/
 https://gaoqssy.github.io/TOOLS/Life/travel-planner/
 ```
 
+首次使用前，需要在 GitHub 仓库 `Settings -> Pages -> Build and deployment` 中把 Source 设为 `GitHub Actions`，然后重新运行 `Deploy TOOLS site` 工作流或推送一次新提交。
+
 分享网站只发布工具代码，不同步个人旅行数据。同行人打开后会使用自己的浏览器本地数据；需要共享具体旅行时，使用“导出协作包 / 导入协作包”。
 
 启动数据服务后，保存和导入会自动同步到后台 JSON 文件：
