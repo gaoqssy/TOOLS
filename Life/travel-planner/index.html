@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>旅行规划工具</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -14,6 +15,7 @@
         <p class="subtitle">把多人旅行的预算、行程、地图点位和清单放进一个 Trip 空间。</p>
       </div>
       <div class="header-actions">
+        <button class="button secondary" id="copySiteLinkButton" type="button">复制网站链接</button>
         <button class="button secondary" id="exportJsonButton" type="button">导出协作包</button>
         <button class="button secondary" id="importJsonButton" type="button">导入协作包</button>
         <input class="visually-hidden" id="importJsonInput" type="file" accept="application/json,.json">
@@ -300,7 +302,7 @@
               <div class="panel-heading">
                 <div>
                   <h2 id="placeFormTitle">新增地点</h2>
-                  <p>手动输入经纬度，地图会展示相对位置。</p>
+                  <p>搜索地点或直接点击地图，自动填入经纬度。</p>
                 </div>
                 <button class="button subtle" id="resetPlaceButton" type="button">重置</button>
               </div>
@@ -354,10 +356,16 @@
               <div class="panel-heading">
                 <div>
                   <h2>地图点位</h2>
-                  <p>没有底图，先用于手动点位和相对位置管理。</p>
+                  <p>点击地图会把坐标写入左侧表单；搜索结果可直接作为地点草稿。</p>
                 </div>
               </div>
+              <form class="map-search" id="mapSearchForm">
+                <input id="mapSearchInput" type="search" placeholder="搜索地点，例如：故宫博物院、东京站、卢浮宫">
+                <button class="button secondary" type="submit">搜索</button>
+              </form>
+              <div class="map-search-results" id="mapSearchResults"></div>
               <div class="map-canvas" id="mapCanvas"></div>
+              <p class="map-note" id="mapHint">地图数据来自 OpenStreetMap；地点搜索适合低频个人规划使用。</p>
               <div class="place-list" id="placeList"></div>
             </section>
           </div>
@@ -426,6 +434,7 @@
     </main>
 
     <datalist id="memberSuggestions"></datalist>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -477,6 +477,37 @@ th {
   grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
 }
 
+.map-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.map-search-results {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.search-result {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.search-result span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .map-canvas {
   position: relative;
   min-height: 420px;
@@ -489,6 +520,41 @@ th {
     #edf7f5;
   background-size: 48px 48px;
   margin-bottom: 14px;
+}
+
+.map-canvas.leaflet-container {
+  background: #dfeee9;
+}
+
+.leaflet-trip-marker {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50% 50% 50% 8px;
+  border: 2px solid #fff;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 850;
+  box-shadow: 0 10px 22px rgba(15, 118, 110, 0.25);
+}
+
+.leaflet-trip-marker.must {
+  background: var(--danger);
+}
+
+.leaflet-trip-marker.nice {
+  background: var(--blue);
+}
+
+.leaflet-trip-marker.backup {
+  background: var(--orange);
+}
+
+.map-note {
+  margin: -4px 0 14px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .map-empty {
@@ -601,7 +667,8 @@ th {
 
   .summary-grid,
   .form-row,
-  .form-row.four-cols {
+  .form-row.four-cols,
+  .map-search {
     grid-template-columns: 1fr;
   }
 

@@ -8,6 +8,9 @@ const state = {
   activeTab: "overview",
   serviceMode: false,
   highlightedPlaceId: "",
+  map: null,
+  markerLayer: null,
+  searchResults: [],
 };
 
 const els = {};
@@ -39,6 +42,9 @@ const currencySymbols = {
   EUR: "€",
   JPY: "¥",
 };
+
+const DEFAULT_MAP_CENTER = [39.9042, 116.4074];
+const PAGES_URL = "https://gaoqssy.github.io/TOOLS/Life/travel-planner/";
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -94,9 +100,12 @@ function bindEvents() {
   els.itineraryList.addEventListener("click", handleItineraryAction);
   els.placeList.addEventListener("click", handlePlaceAction);
   els.mapCanvas.addEventListener("click", handleMapAction);
+  els.mapSearchForm.addEventListener("submit", searchPlaces);
+  els.mapSearchResults.addEventListener("click", handleSearchResultClick);
   els.checklistList.addEventListener("click", handleChecklistAction);
   els.checklistList.addEventListener("change", handleChecklistToggle);
 
+  els.copySiteLinkButton.addEventListener("click", copySiteLink);
   els.exportJsonButton.addEventListener("click", exportJson);
   els.importJsonButton.addEventListener("click", () => els.importJsonInput.click());
   els.importJsonInput.addEventListener("change", importJson);
@@ -592,12 +601,11 @@ function resetItineraryForm() {
 
 function renderPlaces() {
   const trip = getSelectedTrip();
+  renderMap(trip);
   if (!trip || !trip.places.length) {
-    els.mapCanvas.innerHTML = `<div class="map-empty">添加带经纬度的地点后，这里会显示手动点位地图。</div>`;
     els.placeList.innerHTML = emptyMessage("还没有地点。");
     return;
   }
-  renderMap(trip);
   els.placeList.innerHTML = [...trip.places].sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority) || a.name.localeCompare(b.name, "zh-Hans-CN")).map((place) => {
     const active = place.id === state.highlightedPlaceId ? " active" : "";
     const meta = [place.category, priorityLabels[place.priority], coordinateText(place)].filter(Boolean);
@@ -616,6 +624,80 @@ function renderPlaces() {
 }
 
 function renderMap(trip) {
+  if (ensureLeafletMap()) {
+    renderLeafletMarkers(trip);
+    return;
+  }
+  renderFallbackMap(trip);
+}
+
+function ensureLeafletMap() {
+  if (!window.L) {
+    els.mapHint.textContent = "地图组件未加载，已退回到相对位置视图。";
+    return false;
+  }
+  if (state.map) return true;
+
+  els.mapCanvas.innerHTML = "";
+  state.map = L.map(els.mapCanvas, {
+    scrollWheelZoom: true,
+  }).setView(DEFAULT_MAP_CENTER, 11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(state.map);
+  state.markerLayer = L.layerGroup().addTo(state.map);
+  state.map.on("click", handleLeafletMapClick);
+  els.mapHint.textContent = "点击地图可填入经纬度；搜索结果可直接填入地点草稿。";
+  return true;
+}
+
+function renderLeafletMarkers(trip) {
+  if (!state.markerLayer) return;
+  state.markerLayer.clearLayers();
+  const withCoordinates = trip ? trip.places.filter(hasCoordinates) : [];
+  if (!withCoordinates.length) {
+    state.map.setView(DEFAULT_MAP_CENTER, state.map.getZoom() || 11);
+    setTimeout(() => state.map.invalidateSize(), 0);
+    return;
+  }
+
+  const markers = withCoordinates.map((place, index) => {
+    const marker = L.marker([Number(place.latitude), Number(place.longitude)], {
+      title: place.name,
+      icon: L.divIcon({
+        className: `leaflet-trip-marker ${place.priority}`,
+        html: String(index + 1),
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -30],
+      }),
+    });
+    marker.bindPopup(`<strong>${escapeHtml(place.name)}</strong><br>${escapeHtml(place.address || place.category || "")}`);
+    marker.on("click", () => {
+      state.highlightedPlaceId = place.id;
+      renderPlaces();
+    });
+    marker.addTo(state.markerLayer);
+    return marker;
+  });
+
+  const highlighted = withCoordinates.find((place) => place.id === state.highlightedPlaceId);
+  if (highlighted) {
+    state.map.setView([Number(highlighted.latitude), Number(highlighted.longitude)], Math.max(state.map.getZoom(), 13));
+  } else if (markers.length === 1) {
+    state.map.setView(markers[0].getLatLng(), 13);
+  } else {
+    state.map.fitBounds(L.featureGroup(markers).getBounds().pad(0.16));
+  }
+  setTimeout(() => state.map.invalidateSize(), 0);
+}
+
+function renderFallbackMap(trip) {
+  if (!trip || !trip.places.length) {
+    els.mapCanvas.innerHTML = `<div class="map-empty">添加带经纬度的地点后，这里会显示手动点位地图。</div>`;
+    return;
+  }
   const withCoordinates = trip.places.filter(hasCoordinates);
   if (!withCoordinates.length) {
     els.mapCanvas.innerHTML = `<div class="map-empty">地点已保存；补充经纬度后会显示在地图上。</div>`;
@@ -668,6 +750,7 @@ function handlePlaceAction(event) {
   if (!trip) return;
   if (row && !button) {
     state.highlightedPlaceId = row.dataset.placeRow;
+    focusMapOnPlace(state.highlightedPlaceId);
     renderPlaces();
     return;
   }
@@ -691,7 +774,17 @@ function handleMapAction(event) {
   const button = event.target.closest("[data-action='highlight-place']");
   if (!button) return;
   state.highlightedPlaceId = button.dataset.id;
+  focusMapOnPlace(state.highlightedPlaceId);
   renderPlaces();
+}
+
+function handleLeafletMapClick(event) {
+  els.latitudeInput.value = event.latlng.lat.toFixed(6);
+  els.longitudeInput.value = event.latlng.lng.toFixed(6);
+  if (!els.placeNameInput.value.trim()) {
+    els.placeNameInput.value = "地图选点";
+  }
+  els.mapHint.textContent = `已填入坐标：${event.latlng.lat.toFixed(6)}, ${event.latlng.lng.toFixed(6)}`;
 }
 
 function fillPlaceForm(item) {
@@ -704,6 +797,7 @@ function fillPlaceForm(item) {
   els.placePriorityInput.value = item.priority;
   els.placeNotesInput.value = item.notes;
   els.placeFormTitle.textContent = "编辑地点";
+  focusMapOnPlace(item.id);
 }
 
 function resetPlaceForm() {
@@ -711,6 +805,72 @@ function resetPlaceForm() {
   els.placeIdInput.value = "";
   els.placePriorityInput.value = "must";
   els.placeFormTitle.textContent = "新增地点";
+}
+
+async function searchPlaces(event) {
+  event.preventDefault();
+  const query = els.mapSearchInput.value.trim();
+  if (!query) return;
+  els.mapSearchResults.innerHTML = `<p class="muted">正在搜索...</p>`;
+  const params = new URLSearchParams({
+    q: query,
+    format: "jsonv2",
+    limit: "6",
+    addressdetails: "1",
+    "accept-language": "zh-CN",
+  });
+  try {
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error("search failed");
+    state.searchResults = await response.json();
+    renderSearchResults();
+  } catch (error) {
+    els.mapSearchResults.innerHTML = `<p class="empty-state">搜索暂时不可用。可以直接点击地图或手动输入经纬度。</p>`;
+  }
+}
+
+function renderSearchResults() {
+  if (!state.searchResults.length) {
+    els.mapSearchResults.innerHTML = `<p class="empty-state">没有找到匹配地点。试试更具体的名称或城市。</p>`;
+    return;
+  }
+  els.mapSearchResults.innerHTML = state.searchResults.map((result, index) => {
+    const title = result.name || result.display_name?.split(",")[0] || "未命名地点";
+    const address = result.display_name || "";
+    return `<button class="search-result" data-result-index="${index}" type="button">
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(address)}</span>
+    </button>`;
+  }).join("");
+}
+
+function handleSearchResultClick(event) {
+  const button = event.target.closest("[data-result-index]");
+  if (!button) return;
+  const result = state.searchResults[Number(button.dataset.resultIndex)];
+  if (!result) return;
+  const title = result.name || result.display_name?.split(",")[0] || els.mapSearchInput.value.trim();
+  els.placeNameInput.value = title;
+  els.placeAddressInput.value = result.display_name || "";
+  els.latitudeInput.value = Number(result.lat).toFixed(6);
+  els.longitudeInput.value = Number(result.lon).toFixed(6);
+  els.mapHint.textContent = `已填入搜索结果坐标：${els.latitudeInput.value}, ${els.longitudeInput.value}`;
+  if (state.map) {
+    state.map.setView([Number(result.lat), Number(result.lon)], 15);
+    L.popup()
+      .setLatLng([Number(result.lat), Number(result.lon)])
+      .setContent(`<strong>${escapeHtml(title)}</strong><br>保存地点后会出现在点位列表。`)
+      .openOn(state.map);
+  }
+}
+
+function focusMapOnPlace(placeId) {
+  const trip = getSelectedTrip();
+  const place = trip?.places.find((entry) => entry.id === placeId);
+  if (!place || !hasCoordinates(place) || !state.map) return;
+  state.map.setView([Number(place.latitude), Number(place.longitude)], Math.max(state.map.getZoom(), 14));
 }
 
 function renderChecklist() {
@@ -830,6 +990,9 @@ function renderTabs() {
   document.querySelectorAll(".tab-panel").forEach((panel) => {
     panel.classList.toggle("active", panel.id === `${state.activeTab}Tab`);
   });
+  if (state.activeTab === "places" && state.map) {
+    setTimeout(() => state.map.invalidateSize(), 0);
+  }
 }
 
 function resetAllItemForms() {
@@ -852,6 +1015,20 @@ function exportJson() {
   link.download = `travel-planner-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+async function copySiteLink() {
+  const isHosted = location.protocol.startsWith("http") && !["127.0.0.1", "localhost"].includes(location.hostname);
+  const url = isHosted ? location.href.split("#")[0] : PAGES_URL;
+  try {
+    await navigator.clipboard.writeText(url);
+    els.copySiteLinkButton.textContent = "已复制链接";
+    setTimeout(() => {
+      els.copySiteLinkButton.textContent = "复制网站链接";
+    }, 1600);
+  } catch (error) {
+    prompt("复制这个网站链接：", url);
+  }
 }
 
 async function importJson(event) {
